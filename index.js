@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { connectDB } from "./db.js";
 import booksRouter from "./routes/books.js";
+import borrowsRouter from "./routes/borrows.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -19,6 +20,8 @@ app.get("/", (req, res) => {
 
 // All book routes live under /books
 app.use("/books", booksRouter);
+// All borrow routes live under /borrows
+app.use("/borrows", borrowsRouter);
 
 // Catches any error that a route did not handle
 app.use((err, req, res, next) => {
