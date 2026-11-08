@@ -7,18 +7,13 @@ const router = Router();
 
 const CATEGORIES = ["Fiction", "Science", "History", "Kids", "Others"];
 
-// Sends errors from async routes to the error handler in index.js
 const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-// Returns an ObjectId, or null if the text is not a valid id
 function parseId(id) {
   return /^[a-f\d]{24}$/i.test(id) ? new ObjectId(id) : null;
 }
 
-// Checks and cleans the book data sent by the client.
-// requireAll = true  -> used when adding a book (every field needed)
-// requireAll = false -> used when updating (only changed fields needed)
 function cleanBookData(body = {}, requireAll) {
   const data = {};
 
@@ -54,9 +49,7 @@ function cleanBookData(body = {}, requireAll) {
   return { data };
 }
 
-// 1) GET /books  (public)
-// Optional query: ?email=someone@mail.com  -> only that user's books
-// Optional query: ?limit=6                 -> only the newest 6
+
 router.get(
   "/",
   asyncHandler(async (req, res) => {
@@ -65,7 +58,6 @@ router.get(
     const filter = {};
     if (email) filter.addedByEmail = String(email);
 
-    // Newest books first
     let cursor = getDB()
       .collection("books")
       .find(filter)
@@ -78,7 +70,6 @@ router.get(
   })
 );
 
-// 2) GET /books/:id  (logged in)
 router.get(
   "/:id",
   requireAuth,
@@ -93,7 +84,6 @@ router.get(
   })
 );
 
-// 3) POST /books  (logged in)
 router.post(
   "/",
   requireAuth,
@@ -103,8 +93,8 @@ router.post(
 
     const book = {
       ...data,
-      availableCopies: data.totalCopies, // a new book starts fully available
-      // Name and email come from the logged-in user, never from the request body
+      availableCopies: data.totalCopies,
+
       addedByName: req.user.name,
       addedByEmail: req.user.email,
       createdAt: new Date(),
@@ -115,7 +105,6 @@ router.post(
   })
 );
 
-// 4) PATCH /books/:id  (logged in, owner only)
 router.patch(
   "/:id",
   requireAuth,
@@ -139,8 +128,6 @@ router.patch(
       return res.status(400).json({ message: "Nothing to update" });
     }
 
-    // If total copies changes, keep available copies correct.
-    // Copies currently borrowed = total - available.
     if (data.totalCopies !== undefined) {
       const borrowedCount = book.totalCopies - book.availableCopies;
       if (data.totalCopies < borrowedCount) {
@@ -156,7 +143,6 @@ router.patch(
   })
 );
 
-// 5) DELETE /books/:id  (logged in, owner only)
 router.delete(
   "/:id",
   requireAuth,
@@ -175,7 +161,6 @@ router.delete(
     }
 
     await db.collection("books").deleteOne({ _id: id });
-    // Also remove borrow records of this book so nothing is left behind
     await db.collection("borrows").deleteMany({ bookId: id });
 
     res.json({ message: "Book deleted" });

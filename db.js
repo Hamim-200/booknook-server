@@ -2,7 +2,6 @@ import { MongoClient, ServerApiVersion } from "mongodb";
 
 let db;
 
-// Connects to MongoDB Atlas once, when the server starts
 export async function connectDB() {
     const client = new MongoClient(process.env.MONGODB_URI, {
         serverApi: {
@@ -15,7 +14,6 @@ export async function connectDB() {
     await client.connect();
     db = client.db(process.env.DB_NAME || "booknook");
 
-    // One user cannot borrow the same book twice at the same time
     await db
         .collection("borrows")
         .createIndex({ bookId: 1, userEmail: 1 }, { unique: true });
