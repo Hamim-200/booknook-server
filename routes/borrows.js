@@ -7,19 +7,16 @@ const router = Router();
 
 const LOAN_DAYS = 7;
 
-// Sends errors from async routes to the error handler in index.js
+
 const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-// Returns an ObjectId, or null if the text is not a valid id
 function parseId(id) {
   return typeof id === "string" && /^[a-f\d]{24}$/i.test(id)
     ? new ObjectId(id)
     : null;
 }
 
-// 6) POST /borrows  (logged in)
-// Body: { "bookId": "..." }
 router.post(
   "/",
   requireAuth,
@@ -34,7 +31,6 @@ router.post(
     const book = await books.findOne({ _id: bookId });
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    // No double borrow
     const alreadyBorrowed = await borrows.findOne({
       bookId,
       userEmail: req.user.email,
@@ -45,8 +41,6 @@ router.post(
         .json({ message: "You have already borrowed this book" });
     }
 
-    // Take one copy, but only if at least one is available.
-    // This check and the decrease happen together in one step.
     const updatedBook = await books.findOneAndUpdate(
       { _id: bookId, availableCopies: { $gt: 0 } },
       { $inc: { availableCopies: -1 } }
@@ -63,7 +57,6 @@ router.post(
       bookId,
       bookTitle: book.title,
       bookImage: book.image,
-      // Name and email come from the logged-in user, never from the request body
       userName: req.user.name,
       userEmail: req.user.email,
       borrowDate,
@@ -74,10 +67,8 @@ router.post(
       const result = await borrows.insertOne(borrow);
       res.status(201).json({ ...borrow, _id: result.insertedId });
     } catch (error) {
-      // Give the copy back if saving the borrow failed
       await books.updateOne({ _id: bookId }, { $inc: { availableCopies: 1 } });
 
-      // 11000 = the unique index caught a double borrow (two requests at once)
       if (error.code === 11000) {
         return res
           .status(409)
@@ -88,8 +79,6 @@ router.post(
   })
 );
 
-// 7) GET /borrows  (logged in)
-// Returns only the borrows of the logged-in user, newest first
 router.get(
   "/",
   requireAuth,
@@ -104,7 +93,6 @@ router.get(
   })
 );
 
-// 8) DELETE /borrows/:id  (logged in, own borrow only) = return the book
 router.delete(
   "/:id",
   requireAuth,
@@ -123,9 +111,6 @@ router.delete(
         .status(403)
         .json({ message: "You can only return your own borrowed books" });
     }
-
-    // Delete first. Only one request can delete it, so the copy
-    // is added back only once, even if the button is clicked twice.
     const deleted = await borrows.findOneAndDelete({ _id: id });
     if (!deleted) return res.status(404).json({ message: "Borrow not found" });
 
